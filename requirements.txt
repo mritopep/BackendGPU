@@ -1,0 +1,25 @@
+Flask==0.12.5
+SimpleITK  \
+            --pre
+            --find-links https://github.com/SimpleITK/SimpleITK/releases/tag/latest 
+opencv-python
+matplotlib
+scikit-image
+pillow
+flask-ngrok
+tensorflow
+keras
+pfmisc
+nibabel
+pydicom
+ipykernel
+nibabel
+nilearn
+numpy
+scikit-learn
+scipy
+six
+sklearn
+dropbox
+flask-socketio
+pyngrok

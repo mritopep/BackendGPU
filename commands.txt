@@ -1,0 +1,35 @@
+1. run model.sh
+2. conda activate deployment
+3. pip install --force-reinstall
+
+# conda create --name deployment -y
+# activate deployment
+# conda activate deployment
+# conda install python=3.6
+
+# boolean variables
+session['skull_strip'] = False
+session['denoise'] = False
+session['bias_field_correction'] = False
+session['file_upload_start'] = False
+session['file_upload_end'] = False
+session['process_start'] = False
+session['process_end'] = False
+session['generate_start'] = False
+session['generate_end'] = False
+session['saving_start'] = False
+session['saving_end'] = False
+session['start'] = True
+session['end'] = False
+
+intensity_normalization, skull_strip, bias_correction, DENOISE, SKULL_STRIP, BAIS_COR, TEMP_OUTPUT
+
+# Flask-Threads
+from flaskthreads import AppContextThread
+
+DENOISE = f'input/temp/denoise'
+BAIS_COR = f'input/temp/bias_cor'
+TEMP_OUTPUT = f'input/temp/output'
+
+boolean.append("process_end")
+yield boolean

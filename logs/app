@@ -1,0 +1,236 @@
+from flask import Flask, render_template, request, redirect, url_for,  session
+from mri2pet import Mri2Pet
+from os import path, mkdir, listdir, unlink
+from flask_ngrok import run_with_ngrok
+from werkzeug.utils import secure_filename
+from shutil import rmtree
+import time
+import string
+import random
+from flask import Response
+import shutil
+
+from server_util import *
+from model_util import *
+
+app_root = path.dirname(path.abspath(__file__))
+
+model = Mri2Pet()
+
+app = Flask(__name__)
+
+app.secret_key = generate_secret_key()
+
+run_with_ngrok(app)
+
+@app.before_request
+def initialization():
+    session['skull_strip'] = False
+    session['denoise'] = False
+    session['bias_field_correction'] = False
+    session['file_upload_start'] = False
+    session['file_upload_end'] = False
+    session['process_start'] = False
+    session['process_end'] = False
+    session['generate_start'] = False
+    session['generate_end'] = False
+    session['saving_start'] = False
+    session['saving_end'] = False
+    session['start'] = True
+    session['end'] = False
+
+@app.route("/")
+def index():
+    session.pop('next',None) 
+    return render_template("index.html")
+
+
+@app.route("/upload", methods=['GET', 'POST'])
+def upload():
+    session['file_upload_start'] = True
+    session.pop('next',None) 
+
+    if request.method == 'POST':
+        if request.files:
+            f = request.files['mri_file']
+            if not supported_file(f.filename):
+                print("File not supported")
+                return redirect(request.url)
+            else:
+                create_folders()
+                filename = secure_filename(f.filename)
+                f.save(path.join(app_root, 'input', 'nii', filename))
+                print("uploaded")
+                session['file_upload_end'] = True
+
+    return redirect(url_for('index'))
+
+
+def stream_template(template_name, **context):
+    app.update_template_context(context)
+    t = app.jinja_env.get_template(template_name)
+    rv = t.stream(context)
+    # rv.enable_buffering(5)
+    return rv
+
+
+@app.route("/next", methods=['GET', 'POST'])
+def next():
+
+    global model
+
+    if "next" not in session:
+        session['next'] = True
+
+    if(session['next']):
+        start_time = time.time()
+
+        print(bcolors.OKBLUE + "Starting" + bcolors.ENDC)
+
+        input_folder = path.join(app_root, 'input', 'nii')
+        file_path = input_folder + '/' + listdir(input_folder)[0]
+
+        print(f"File path : {file_path}")
+
+        session['skull_strip'] = True
+        session['denoise'] = True
+        session['bias_field_correction'] = True
+
+        end_time = time.time()
+        print(bcolors.OKCYAN +
+              f"Time Taken : {(end_time-start_time)/60} min"+bcolors.ENDC)
+
+        def process(model, file_path, Skull_Strip=True, Denoise=True, Bais_Correction=True):
+            skull_strip_end = False
+            denoise_end = False
+            bias_field_correction_end = False
+            process_start = False
+            process_end = False
+            generate_start = False
+            generate_end = False
+            saving_start = False
+            saving_end = False
+            start = False
+            end = False
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end, start, end]
+        
+            process_start = True
+        
+            print("\n-------------------MRI PREPROCESS STARTED--------------------\n")
+        
+            if(Denoise):
+                if(intensity_normalization(file_path, f"{DENOISE}/mri")):
+                    denoise_end = True
+                    input = f"{DENOISE}/mri.nii"
+                else:
+                    denoise_end = False
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end, start, end]
+        
+            if(Skull_Strip):
+                if(skull_strip(input)):
+                    skull_strip_end = True
+                    input = f"{SKULL_STRIP}/mri_sk.nii"
+                else:
+                    skull_strip_end = False
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end, start, end]
+        
+            if(Bais_Correction):
+                if(bias_correction(input, f"{BAIS_COR}/mri.nii")):
+                    bias_field_correction_end = True
+                    input = f"{BAIS_COR}/mri.nii"
+                else:
+                    bias_field_correction_end = False
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end, start, end]
+        
+            shutil.copyfile(input, f"{TEMP_OUTPUT}/mri.nii")
+        
+            print("\nTemp mri image: " + f"{TEMP_OUTPUT}/mri.nii")
+            print("\n-------------------MRI PREPROCESS COMPELETED--------------------\n")
+        
+            process_end = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+        
+            if(process_end == False):
+                print(
+                    bcolors.FAIL+"Process failed restart process with change in configuration"+bcolors.ENDC)
+        
+            generate_start = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+        
+            model.generate()
+        
+            generate_end = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+        
+            saving_start = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+        
+            model.save()
+        
+            saving_end = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+        
+            print(bcolors.OKGREEN + 'Pet saved' + bcolors.ENDC)
+        
+            start = False
+            end = True
+        
+            yield [skull_strip_end, denoise_end, bias_field_correction_end, process_start, process_end, generate_start, generate_end, saving_start, saving_end]
+
+
+        return Response(stream_template('sample.html', boolean=process(model, file_path, Skull_Strip=session['skull_strip'],
+                                                                  Denoise=session['denoise'], Bais_Correction=session['bias_field_correction'])))
+
+
+
+@app.route("/download", methods=['GET', 'POST'])
+def download():
+    file_path = path.join(app_root, 'output/nii/pet.nii.gz')
+
+    def generate():
+        with open(file_path, "rb") as file:
+            yield from file
+
+        delete_contents('./output')
+        delete_contents('./input')
+
+        session['skull_strip'] = False
+        session['denoise'] = False
+        session['bias_field_correction'] = False
+        session['file_upload_start'] = False
+        session['file_upload_end'] = False
+        session['process_start'] = False
+        session['process_end'] = False
+        session['generate_start'] = False
+        session['generate_end'] = False
+        session['saving_start'] = False
+        session['saving_end'] = False
+        session['start'] = True
+        session['end'] = False
+        session.pop('next',None) 
+
+        print(bcolors.OKBLUE + "All files deleted" + bcolors.ENDC)
+
+    response = app.response_class(generate(), mimetype='application/x-gzip')
+    response.headers.set('Content-Disposition',
+                         'attachment', filename="pet.nii.gz")
+    return response
+
+
+@app.route("/test", methods=['GET', 'POST'])
+def test():
+    model.load_test_data()
+    model.test()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run()
