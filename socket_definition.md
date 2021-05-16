@@ -28,18 +28,35 @@
   - uploaded : boolean
   - url : str
 
+> All Images should be in png format
+### MRI images
+- mri images must be converted to base64 format and should be sent before preprocessing to user by anthor task (multiprocessor)
+- EventName : MRI
+#### Object Defifition
+- slice_no: int
+- data: string (base64)
+
+> object should be sent as json object 
+
+### PET images
+- pet images should be saved when genrating and those pet images must be converted to base64 format and should be sent when generating rest to user by anthor task (multiprocessor)
+- EventName : PET
+#### Object Defifition
+- slice_no: int
+- data: string (base64)
+
+> object should be sent as json object
+
+> After All images sent :-
 ### Mri image upload 
 - id: MRI_IMG_UPLOAD
 - data:
   - uploaded : boolean
-  - url : str
   - total_slice_number : int
-
 ### Pet image upload 
 - id: PET_IMG_UPLOAD
 - data:
   - uploaded : boolean
-  - url : str
   - total_slice_number : int
 
 ### Process status
