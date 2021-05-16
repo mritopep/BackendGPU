@@ -221,7 +221,7 @@ def handle_messages(json_message):
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] == True:
 
         if exists(dbx, "/pet.zip"): dbx.files_delete("/pet.zip")
-        #if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
+        if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
 
         delete_contents(path.join(app_root, "input"))
         delete_contents(path.join(app_root, "output"))
