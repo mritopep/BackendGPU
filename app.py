@@ -12,6 +12,7 @@ import os
 import time
 import zipfile
 import string
+import base64
 import random
 from flask import Response
 import shutil
@@ -59,7 +60,11 @@ def create_ngrok_app():
 
 app_root = path.dirname(path.abspath(__file__))
 
+ENCODING = 'utf-8'
+
 MESSAGE_EVENT = "Messages"
+MRI = "MRI"
+PET = "PET"
 
 app = create_ngrok_app()
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -191,34 +196,67 @@ def handle_messages(json_message):
 
 
         mri_img_folder = path.join(app_root, 'input', "img")
-        shutil.make_archive(path.join(app_root, 'input', "mri_img"), 'zip', mri_img_folder)
+        mr_slice_no = 0
+
+        for img in sorted(listdir(mri_img_folder)):
+            mr_slice = dict()
+
+            with open(path.join(mri_img_folder, img), "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode(ENCODING)
+                mr_slice['slice_no'] = mr_slice_no
+                mr_slice['data'] = encoded_string
+
+
+                send_mri(mr_slice)
+            
+            mr_slice_no += 1
+
+
+        #shutil.make_archive(path.join(app_root, 'input', "mri_img"), 'zip', mri_img_folder)
 
         mri_img_upload = dict()
         mri_img_upload['id'] = "MRI_IMG_UPLOAD"
         mri_img_upload['data'] = dict()
         mri_img_upload['data']['total_slice_number'] = len(listdir(mri_img_folder))
 
-        upload_file(dbx, "/mri_img.zip", path.join(app_root, 'input', "mri_img.zip"))
+        #upload_file(dbx, "/mri_img.zip", path.join(app_root, 'input', "mri_img.zip"))
 
         mri_img_upload['data']['uploaded'] = True
-        mri_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/mri_img.zip").url
+        #mri_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/mri_img.zip").url
 
         emit(mri_img_upload)
 
 
 
+
+
         pet_img_folder = path.join(app_root, 'output', "img")
-        shutil.make_archive(path.join(app_root, 'output', "pet_img"), 'zip', pet_img_folder)
+        #shutil.make_archive(path.join(app_root, 'output', "pet_img"), 'zip', pet_img_folder)
+        pet_slice_no = 0
+
+        for img in sorted(listdir(pet_img_folder)):
+            pet_slice = dict()
+
+            with open(path.join(pet_img_folder, img), "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode(ENCODING)
+                pet_slice['slice_no'] = pet_slice_no
+                pet_slice['data'] = encoded_string
+
+
+                send_pet(pet_slice)
+            
+            pet_slice_no += 1
+
 
         pet_img_upload = dict()
         pet_img_upload['id'] = "PET_IMG_UPLOAD"
         pet_img_upload['data'] = dict()
         pet_img_upload['data']['total_slice_number'] = len(listdir(pet_img_folder))
 
-        upload_file(dbx, "/pet_img.zip", path.join(app_root, 'output', "pet_img.zip"))
+        #upload_file(dbx, "/pet_img.zip", path.join(app_root, 'output', "pet_img.zip"))
 
         pet_img_upload['data']['uploaded'] = True
-        pet_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet_img.zip").url
+        #pet_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet_img.zip").url
 
         emit(pet_img_upload)
 
@@ -243,9 +281,9 @@ def handle_messages(json_message):
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] == True:
 
         dbx.files_delete("/pet.zip")
-        dbx.files_delete("/mri.zip")
-        dbx.files_delete("/mri_img.zip")
-        dbx.files_delete("/pet_img.zip")
+        #dbx.files_delete("/mri.zip")
+        #dbx.files_delete("/mri_img.zip")
+        #dbx.files_delete("/pet_img.zip")
 
         delete_contents(path.join(app_root, "input"))
         delete_contents(path.join(app_root, "output"))
@@ -258,6 +296,12 @@ def handle_messages(json_message):
 
 def emit(data):
     socketio.emit(MESSAGE_EVENT, json.dumps(data))
+
+def send_mri(data):
+    socketio.emit(MRI, json.dumps(data))
+
+def send_pet(data):
+    socketio.emit(PET, json.dumps(data))
 
 
 if __name__ == '__main__':

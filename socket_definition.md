@@ -1,8 +1,8 @@
 # Socket Definition
 - id values will be capital
 - data fields is small and values will be boolean
-- Message sent will follow the format of message object
-- "Message" is the eventName
+- Messages sent will follow the format of message object
+- "Messages" is the eventName
   
 ## Message Object 
 - id: discribe about msg data meaning
