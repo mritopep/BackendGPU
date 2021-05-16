@@ -60,8 +60,6 @@ def create_ngrok_app():
 
 app_root = path.dirname(path.abspath(__file__))
 
-ENCODING = 'utf-8'
-
 MESSAGE_EVENT = "Messages"
 MRI = "MRI"
 PET = "PET"
@@ -84,6 +82,12 @@ def download_file(dbx, file, name):
     out.close()
     print(f)
 
+def exists(dbx, path):
+    try:
+        dbx.files_get_metadata(path)
+        return True
+    except:
+        return False
 
 def upload_file(dbx, file_path, file):
   with open(file, "rb") as f:
@@ -100,7 +104,7 @@ def process(model, file_path, Skull_Strip, Denoise, Bias_Correction, status):
     emit(status)
 
     model.process(file_path, Skull_Strip=Skull_Strip,
-                  Denoise=Denoise, Bias_Correction=Bias_Correction, emit=emit, status=status)
+                  Denoise=Denoise, Bias_Correction=Bias_Correction, emit=emit, status=status, send_mri=send_mri)
 
     status['data'][PREPROCESS_END] = True
     emit(status)
@@ -110,7 +114,7 @@ def process(model, file_path, Skull_Strip, Denoise, Bias_Correction, status):
     status['data'][GENERATE_START] = True
     emit(status)
 
-    model.generate()
+    model.generate(send_pet)
 
     status['data'][GENERATE_END] = True
     emit(status)
@@ -194,74 +198,6 @@ def handle_messages(json_message):
         status['data'][UPLOAD_START] = True
         emit(status)
 
-
-        mri_img_folder = path.join(app_root, 'input', "img")
-        mr_slice_no = 0
-
-        for img in sorted(listdir(mri_img_folder)):
-            mr_slice = dict()
-
-            with open(path.join(mri_img_folder, img), "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode(ENCODING)
-                mr_slice['slice_no'] = mr_slice_no
-                mr_slice['data'] = encoded_string
-
-
-                send_mri(mr_slice)
-            
-            mr_slice_no += 1
-
-
-        #shutil.make_archive(path.join(app_root, 'input', "mri_img"), 'zip', mri_img_folder)
-
-        mri_img_upload = dict()
-        mri_img_upload['id'] = "MRI_IMG_UPLOAD"
-        mri_img_upload['data'] = dict()
-        mri_img_upload['data']['total_slice_number'] = len(listdir(mri_img_folder))
-
-        #upload_file(dbx, "/mri_img.zip", path.join(app_root, 'input', "mri_img.zip"))
-
-        mri_img_upload['data']['uploaded'] = True
-        #mri_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/mri_img.zip").url
-
-        emit(mri_img_upload)
-
-
-
-
-
-        pet_img_folder = path.join(app_root, 'output', "img")
-        #shutil.make_archive(path.join(app_root, 'output', "pet_img"), 'zip', pet_img_folder)
-        pet_slice_no = 0
-
-        for img in sorted(listdir(pet_img_folder)):
-            pet_slice = dict()
-
-            with open(path.join(pet_img_folder, img), "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode(ENCODING)
-                pet_slice['slice_no'] = pet_slice_no
-                pet_slice['data'] = encoded_string
-
-
-                send_pet(pet_slice)
-            
-            pet_slice_no += 1
-
-
-        pet_img_upload = dict()
-        pet_img_upload['id'] = "PET_IMG_UPLOAD"
-        pet_img_upload['data'] = dict()
-        pet_img_upload['data']['total_slice_number'] = len(listdir(pet_img_folder))
-
-        #upload_file(dbx, "/pet_img.zip", path.join(app_root, 'output', "pet_img.zip"))
-
-        pet_img_upload['data']['uploaded'] = True
-        #pet_img_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet_img.zip").url
-
-        emit(pet_img_upload)
-
-
-
         pet_zip_upload = dict()
         pet_zip_upload['id'] = "PET_ZIP_UPLOAD"
         pet_zip_upload['data'] = dict()
@@ -270,7 +206,11 @@ def handle_messages(json_message):
         upload_file(dbx, "/pet.zip", pet_zip)
 
         pet_zip_upload['data']['uploaded'] = True
-        pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet.zip").url
+
+        try :
+            pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet.zip").url
+        except :
+            pet_zip_upload['data']['url'] = dbx.sharing_list_shared_links("/pet.zip", direct_only=True).url
 
 
         emit(pet_zip_upload)
@@ -280,10 +220,8 @@ def handle_messages(json_message):
 
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] == True:
 
-        dbx.files_delete("/pet.zip")
-        #dbx.files_delete("/mri.zip")
-        #dbx.files_delete("/mri_img.zip")
-        #dbx.files_delete("/pet_img.zip")
+        if exists(dbx, "/pet.zip"): dbx.files_delete("/pet.zip")
+        #if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
 
         delete_contents(path.join(app_root, "input"))
         delete_contents(path.join(app_root, "output"))
@@ -297,11 +235,48 @@ def handle_messages(json_message):
 def emit(data):
     socketio.emit(MESSAGE_EVENT, json.dumps(data))
 
-def send_mri(data):
-    socketio.emit(MRI, json.dumps(data))
+def send_mri(folder):
+    mr_slice_no = 0
+    for img in sorted(listdir(folder)):
+        mr_slice = dict()
+        with open(path.join(folder, img), "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            mr_slice['slice_no'] = mr_slice_no
+            mr_slice['data'] = encoded_string
 
-def send_pet(data):
-    socketio.emit(PET, json.dumps(data))
+            socketio.emit(MRI, json.dumps(mr_slice))
+        mr_slice_no += 1
+    
+    mri_img_upload = dict()
+    mri_img_upload['id'] = "MRI_IMG_UPLOAD"
+    mri_img_upload['data'] = dict()
+    mri_img_upload['data']['total_slice_number'] = len(listdir(folder))
+    mri_img_upload['data']['uploaded'] = True
+
+    emit(mri_img_upload)
+
+
+
+def send_pet(folder):
+    pet_slice_no = 0
+    for img in sorted(listdir(folder)):
+        pet_slice = dict()
+        with open(path.join(folder, img), "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            pet_slice['slice_no'] = pet_slice_no
+            pet_slice['data'] = encoded_string
+
+            socketio.emit(PET, json.dumps(pet_slice))
+        pet_slice_no += 1
+    
+    pet_img_upload = dict()
+    pet_img_upload['id'] = "PET_IMG_UPLOAD"
+    pet_img_upload['data'] = dict()
+    pet_img_upload['data']['total_slice_number'] = len(listdir(folder))
+    pet_img_upload['data']['uploaded'] = True
+
+    
+    emit(pet_img_upload)
 
 
 if __name__ == '__main__':

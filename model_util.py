@@ -79,17 +79,13 @@ def gamma_correction(image):
     return image
 
 
-def read_nifti(file):
+def read_nifti(file, send_mri=None):
     convert(file, "./input/img/")
     folder = "./input/img"
     files = sorted(listdir(folder))
 
-    slice_no = 0
-    for i in files:
-        rename(path.join(folder, i), path.join(folder, str(slice_no)+".png"))
-        slice_no += 1
+    if send_mri : send_mri(folder)
 
-    files = sorted(listdir(folder))
     images = []
 
     # input/img/img-slice000.png
@@ -141,7 +137,7 @@ def denoise(input_image, output_image):
     new_image = nib.Nifti1Image(data_filtered, affine=np.eye(4))
     nib.save(new_image, output_image)
     end = time.time() 
-    print("Total time taken :", (end - begin)//60 ,"min.", (end - begin)%60 , "s")
+    print(bcolors.UNDERLINE + "Total time taken :", (end - begin)//60 ,"min.", (end - begin)%60 , "s" + bcolors.ENDC)
 
 def bias_correction(input_image, output_image):
     print("\nBIAS CORRECTION\n")
@@ -155,7 +151,7 @@ def bias_correction(input_image, output_image):
     output = inputImage / sitk.Exp( log_bias_field )
     sitk.WriteImage(output, output_image)
     end = time.time() 
-    print("Total time taken :", (end - begin)//60 ,"min.", (end - begin)%60 , "s")
+    print(bcolors.UNDERLINE + "Total time taken :", (end - begin)//60 ,"min.", (end - begin)%60 , "s" + bcolors.ENDC)
 
 def skull_strip(input_image):
     print("\nSKULL STRIPPING\n")

@@ -35,20 +35,23 @@ class Mri2Pet:
         nib.save(output_nii, path.join(
             THIS_FOLDER, 'output/nii/output.nii.gz'))
 
-    def process(self, file, Skull_Strip, Denoise, Bias_Correction, emit, status):
+    def process(self, file, Skull_Strip, Denoise, Bias_Correction, emit, status, send_mri):
         print(bcolors.OKBLUE + "Processing Data..." + bcolors.ENDC)
         preprocess(file, Skull_Strip=Skull_Strip, Denoise=Denoise, Bias_Correction=Bias_Correction ,emit=emit, status=status)
-        self.img = read_nifti("input/temp/output/mri.nii")
+        self.img = read_nifti("input/temp/output/mri.nii", send_mri=send_mri)
         print(bcolors.OKBLUE + "Processing complete" + bcolors.ENDC)
 
     def save(self):
         print(bcolors.OKBLUE + "Saving .nii file of result..." + bcolors.ENDC)
+        s = time.time()
         output_nii = img_to_nii(self.img)
         nib.save(output_nii, path.join(THIS_FOLDER, 'output/nii/pet.nii.gz'))
+        print(bcolors.UNDERLINE + "Time taken ", "%.3f"%(time.time()-s) + bcolors.ENDC)
         print(bcolors.OKBLUE + "Completed" + bcolors.ENDC)
 
-    def generate(self):
+    def generate(self ,send_pet=None):
         print(bcolors.OKBLUE + "Generating Pet..." + bcolors.ENDC)
+        s = time.time()
         self.img = (self.img - 127.5) / 127.5
         fake_images = zeros(self.img.shape)
         slice_no = 1
@@ -68,5 +71,8 @@ class Mri2Pet:
             plt.imsave(f"{predicted_data}/{i}.png",
                        normalize(predicted_imgs[i]), cmap=plt.cm.Greys_r)
 
+        if send_pet : send_pet(predicted_data)
+
         self.img = predicted_imgs
+        print(bcolors.UNDERLINE + "Time taken ", "%.3f"%(time.time()-s) + bcolors.ENDC)
         print(bcolors.OKBLUE + "Pet Generation complete" + bcolors.ENDC)
