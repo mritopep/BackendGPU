@@ -23,37 +23,29 @@ from model_util import *
 
 
 def init_webhooks(base_url):
-    # Update inbound traffic via APIs to use the public-facing ngrok URL
     pass
 
 
 def create_ngrok_app():
     app = Flask(__name__)
-    # Initialize our ngrok settings into Flask
     app.config.from_mapping(
         BASE_URL="http://localhost:5000",
         USE_NGROK=os.environ.get("WERKZEUG_RUN_MAIN") != "true"
     )
 
     if app.config["USE_NGROK"]:
-        # pyngrok will only be installed, and should only ever be initialized, in a dev environment
         from pyngrok import ngrok
 
-        # Get the dev server port (defaults to 5000 for Flask, can be overridden with `--port`
-        # when starting the server
         port = sys.argv[sys.argv.index(
             "--port") + 1] if "--port" in sys.argv else 5000
 
-        # Open a ngrok tunnel to the dev server
         public_url = ngrok.connect(port).public_url
         print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port) + bcolors.ENDC)
 
-        # Update any base URLs or webhooks to use the public ngrok URL
         app.config["BASE_URL"] = public_url
         init_webhooks(public_url)
 
-    # ... Initialize Blueprints and the rest of our app
 
     return app
 
@@ -220,8 +212,10 @@ def handle_messages(json_message):
 
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] == True:
 
+        print(bcolors.WARNING + "DELETING LOCAL FOLDERS AND REMOTE FILES" + bcolors.ENDC)
+
         if exists(dbx, "/pet.zip"): dbx.files_delete("/pet.zip")
-        #if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
+        if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
 
         delete_contents(path.join(app_root, "input"))
         delete_contents(path.join(app_root, "output"))
