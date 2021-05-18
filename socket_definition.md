@@ -8,7 +8,12 @@
 - id: discribe about msg data meaning
 - data: payload required
   
-## Message
+## Message 
+
+## Starting 
+- id: START 
+- data: 
+  - start_server : boolean
 
 ### User option
 - id: OPTION
