@@ -40,12 +40,15 @@ def create_ngrok_app():
             "--port") + 1] if "--port" in sys.argv else 5000
 
         public_url = ngrok.connect(port).public_url
+
+        open("ngrok-link.txt", "w").write(" * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
+            public_url, port))
+
         print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port) + bcolors.ENDC)
 
         app.config["BASE_URL"] = public_url
         init_webhooks(public_url)
-
 
     return app
 
@@ -74,6 +77,7 @@ def download_file(dbx, file, name):
     out.close()
     print(f)
 
+
 def exists(dbx, path):
     try:
         dbx.files_get_metadata(path)
@@ -81,9 +85,11 @@ def exists(dbx, path):
     except:
         return False
 
+
 def upload_file(dbx, file_path, file):
-  with open(file, "rb") as f:
-    dbx.files_upload(f.read(), file_path, mode=dropbox.files.WriteMode.overwrite)
+    with open(file, "rb") as f:
+        dbx.files_upload(f.read(), file_path,
+                         mode=dropbox.files.WriteMode.overwrite)
 
 
 def process(model, file_path, Skull_Strip, Denoise, Bias_Correction, status):
@@ -142,10 +148,12 @@ def handle_messages(json_message):
 
         print(bcolors.OKBLUE + "Starting" + bcolors.ENDC)
 
-        if 'Skull_Strip' not in session : session['Skull_Strip'] = False
-        if 'Denoise' not in session : session['Denoise'] = False
-        if 'Bias_Correction' not in session : session['Bias_Correction'] = False
-
+        if 'Skull_Strip' not in session:
+            session['Skull_Strip'] = False
+        if 'Denoise' not in session:
+            session['Denoise'] = False
+        if 'Bias_Correction' not in session:
+            session['Bias_Correction'] = False
 
         create_folders()
 
@@ -185,7 +193,6 @@ def handle_messages(json_message):
 
         process(model, file_path, Skull_Strip=session['Skull_Strip'],
                 Denoise=session['Denoise'], Bias_Correction=session['Bias_Correction'], status=status)
-      
 
         status['data'][UPLOAD_START] = True
         emit(status)
@@ -194,34 +201,38 @@ def handle_messages(json_message):
         pet_zip_upload['id'] = "PET_ZIP_UPLOAD"
         pet_zip_upload['data'] = dict()
 
-        pet_zip = shutil.make_archive(path.join(app_root, 'output', "pet"), 'zip', path.join(app_root, 'output', "nii"))
+        pet_zip = shutil.make_archive(path.join(
+            app_root, 'output', "pet"), 'zip', path.join(app_root, 'output', "nii"))
         upload_file(dbx, "/pet.zip", pet_zip)
 
         pet_zip_upload['data']['uploaded'] = True
 
-        try :
-            pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings("/pet.zip").url
-        except :
-            pet_zip_upload['data']['url'] = dbx.sharing_list_shared_links("/pet.zip", direct_only=True).url
-
+        try:
+            pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings(
+                "/pet.zip").url
+        except:
+            pet_zip_upload['data']['url'] = dbx.sharing_list_shared_links(
+                "/pet.zip", direct_only=True).url
 
         emit(pet_zip_upload)
 
         status['data'][UPLOAD_END] = True
         emit(status)
 
-    if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] == True:
+    if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] or json_message['id'] == "START" and json_message['data']['start_server']:
 
-        print(bcolors.WARNING + "DELETING LOCAL FOLDERS AND REMOTE FILES" + bcolors.ENDC)
+        print(bcolors.WARNING +
+              "DELETING LOCAL FOLDERS AND REMOTE FILES" + bcolors.ENDC)
 
-        if exists(dbx, "/pet.zip"): dbx.files_delete("/pet.zip")
-        if exists(dbx, "/mri.zip"): dbx.files_delete("/mri.zip")
+        if exists(dbx, "/pet.zip"):
+            dbx.files_delete("/pet.zip")
+        if exists(dbx, "/mri.zip"):
+            dbx.files_delete("/mri.zip")
 
-        delete_contents(path.join(app_root, "input"))
-        delete_contents(path.join(app_root, "output"))
-
-    
-
+        if path.isdir("input"):
+            delete_contents(path.join(app_root, "input"))
+        if path.isdir("output"):
+            delete_contents(path.join(app_root, "output"))
 
     return 'hello'  # response
 
@@ -229,18 +240,20 @@ def handle_messages(json_message):
 def emit(data):
     socketio.emit(MESSAGE_EVENT, json.dumps(data))
 
+
 def send_mri(folder):
     mr_slice_no = 0
     for img in sorted(listdir(folder)):
         mr_slice = dict()
         with open(path.join(folder, img), "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            encoded_string = base64.b64encode(
+                image_file.read()).decode('utf-8')
             mr_slice['slice_no'] = mr_slice_no
             mr_slice['data'] = encoded_string
 
             socketio.emit(MRI, json.dumps(mr_slice))
         mr_slice_no += 1
-    
+
     mri_img_upload = dict()
     mri_img_upload['id'] = "MRI_IMG_UPLOAD"
     mri_img_upload['data'] = dict()
@@ -250,26 +263,25 @@ def send_mri(folder):
     emit(mri_img_upload)
 
 
-
 def send_pet(folder):
     pet_slice_no = 0
     for img in sorted(listdir(folder)):
         pet_slice = dict()
         with open(path.join(folder, img), "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            encoded_string = base64.b64encode(
+                image_file.read()).decode('utf-8')
             pet_slice['slice_no'] = pet_slice_no
             pet_slice['data'] = encoded_string
 
             socketio.emit(PET, json.dumps(pet_slice))
         pet_slice_no += 1
-    
+
     pet_img_upload = dict()
     pet_img_upload['id'] = "PET_IMG_UPLOAD"
     pet_img_upload['data'] = dict()
     pet_img_upload['data']['total_slice_number'] = len(listdir(folder))
     pet_img_upload['data']['uploaded'] = True
 
-    
     emit(pet_img_upload)
 
 
