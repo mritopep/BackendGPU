@@ -4,6 +4,7 @@ from numpy import load, zeros, copy, arange, eye
 from os import path, rename
 from statuses import BIAS_CORRECTION, DENOISE, SKULL_STRIP
 import cv2
+import os
 from os import listdir
 from os import system as run
 import numpy as np
@@ -80,8 +81,20 @@ def gamma_correction(image):
 
 
 def read_nifti(file, send_mri=None):
-    convert(file, "./input/img/")
+    
     folder = "./input/img"
+
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+    convert(file, "./input/img/")
     files = sorted(listdir(folder))
 
     if send_mri : send_mri(folder)
