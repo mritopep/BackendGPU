@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, render_template
 import json
 from numpy import save
 from mri2pet import Mri2Pet
@@ -21,13 +21,29 @@ import sys
 from server_util import *
 from model_util import *
 
+def create_main_js(url):
+    f1 = open("dist/UI/main.js", "w")
+    f2 = open("dist/UI/upper.txt", "r")
+    f1.write(f2.read())
+    f2.close()
+    f1.close()
+    f1 = open("dist/UI/main.js", "a")
+    f1.write(url)
+    f2 = open("dist/UI/lower.txt", "r")
+    f1.write(f2.read())
+    f2.close()
+    f1.close()
 
 def init_webhooks(base_url):
     pass
 
 
 def create_ngrok_app():
-    app = Flask(__name__)
+    app = Flask(__name__,
+            static_url_path='', 
+            static_folder='dist/UI',
+            template_folder='dist/UI')
+    # Initialize our ngrok settings into Flask
     app.config.from_mapping(
         BASE_URL="http://localhost:5000",
         USE_NGROK=os.environ.get("WERKZEUG_RUN_MAIN") != "true"
@@ -43,6 +59,10 @@ def create_ngrok_app():
 
         open("ngrok-link.txt", "w").write(" * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port))
+
+        create_main_js(public_url)
+
+        print(bcolors.HEADER + "\nmain.js created\n" + bcolors.ENDC)
 
         print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port) + bcolors.ENDC)
@@ -284,6 +304,9 @@ def send_pet(folder):
 
     emit(pet_img_upload)
 
-
+@app.route('/')
+def index():
+    return render_template("index.html")
+    
 if __name__ == '__main__':
     socketio.run(app)
