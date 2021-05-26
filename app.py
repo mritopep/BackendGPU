@@ -21,6 +21,19 @@ import sys
 from server_util import *
 from model_util import *
 
+def create_main_js(url):
+    f1 = open("dist/UI/main.js", "w")
+    f2 = open("dist/UI/upper.txt", "r")
+    f1.write(f2.read())
+    f2.close()
+    f1.close()
+    f1 = open("dist/UI/main.js", "a")
+    f1.write(url)
+    f2 = open("dist/UI/lower.txt", "r")
+    f1.write(f2.read())
+    f2.close()
+    f1.close()
+
 def init_webhooks(base_url):
     pass
 
@@ -46,6 +59,10 @@ def create_ngrok_app():
 
         open("ngrok-link.txt", "w").write(" * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port))
+
+        create_main_js(public_url)
+
+        print(bcolors.HEADER + "\nmain.js created\n" + bcolors.ENDC)
 
         print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port) + bcolors.ENDC)
