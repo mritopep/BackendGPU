@@ -62,10 +62,14 @@ def create_ngrok_app():
 
         create_main_js(public_url)
 
-        print(bcolors.HEADER + "\nmain.js created\n" + bcolors.ENDC)
-
         print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port) + bcolors.ENDC)
+
+        print("\n"+"-"*25+"APP"+"-"*25+"\n")
+        
+        print(bcolors.HEADER + f"Click Here to Start App {public_url}" + bcolors.ENDC)
+
+        print("\n"+"-"*25+"APP"+"-"*25+"\n")
 
         app.config["BASE_URL"] = public_url
         init_webhooks(public_url)
