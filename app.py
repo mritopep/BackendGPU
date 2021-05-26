@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, render_template
 import json
 from numpy import save
 from mri2pet import Mri2Pet
@@ -21,13 +21,16 @@ import sys
 from server_util import *
 from model_util import *
 
-
 def init_webhooks(base_url):
     pass
 
 
 def create_ngrok_app():
-    app = Flask(__name__)
+    app = Flask(__name__,
+            static_url_path='', 
+            static_folder='dist/UI',
+            template_folder='dist/UI')
+    # Initialize our ngrok settings into Flask
     app.config.from_mapping(
         BASE_URL="http://localhost:5000",
         USE_NGROK=os.environ.get("WERKZEUG_RUN_MAIN") != "true"
@@ -284,6 +287,9 @@ def send_pet(folder):
 
     emit(pet_img_upload)
 
-
+@app.route('/')
+def index():
+    return render_template("index.html")
+    
 if __name__ == '__main__':
     socketio.run(app)
