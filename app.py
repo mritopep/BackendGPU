@@ -234,9 +234,7 @@ def handle_messages(json_message):
         if path.isdir("output"):
             delete_contents(path.join(app_root, "output"))
 
-        create_folders()
-
-    return 'files deleted'
+    return 'files deleted'  
 
 
 def emit(data):
