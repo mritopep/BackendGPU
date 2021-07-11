@@ -33,6 +33,12 @@
   - uploaded : boolean
   - url : str
 
+### Prediction
+- id: PREDICTION
+- data:
+  - prediction_percentage : int
+  - confidence_percentage : int 
+
 > All Images should be in png format
 ### MRI images
 - mri images must be converted to base64 format and should be sent before preprocessing to user by anthor task (multiprocessor)
