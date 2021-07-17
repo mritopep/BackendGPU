@@ -36,8 +36,8 @@
 ### Prediction
 - id: PREDICTION
 - data:
-  - prediction_percentage : int
-  - confidence_percentage : int 
+  - class : str (abbrivated)
+  - confidence : int 
 
 > All Images should be in png format
 ### MRI images
