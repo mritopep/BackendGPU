@@ -16,6 +16,7 @@ import base64
 import random
 from flask import Response
 import shutil
+from keras.models import load_model
 import sys
 
 from server_util import *
@@ -66,6 +67,12 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 model = Mri2Pet()
 dbx = dropbox.Dropbox(
     "dsD7-kooEwQAAAAAAAAAAQr33QP7twaSOK_Xj9RJHirXh6-h9d7itQsJG-KheXzt")
+
+
+mri_classifier = load_model("classifiers/mri_vgg16_classifier_30.h5")
+pet_classifier = load_model("classifiers/pet_vgg16_classifier_15.h5")
+stacked_model = load_model("classifiers/Stacked_Model_vgg.h5")
+
 
 print(bcolors.BOLD, model, bcolors.ENDC, flush=True)
 
@@ -219,6 +226,30 @@ def handle_messages(json_message):
         status['data'][UPLOAD_END] = True
         emit(status)
 
+        print(bcolors.OKBLUE, "Generating classifications", bcolors.ENDC)
+
+        
+        results = [[1e1]*12 for _ in range(len(model.mri_imgs))]    
+
+        print(bcolors.OKBLUE, "Combining results", bcolors.ENDC)
+
+        output = []
+        
+        for i in range(len(results)):
+            print("Slice", i + 1, "processed")
+            output.append(np.argmax(stacked_model.predict(np.expand_dims(results[i], axis=0))[0]))
+        
+        output = aggregate(output)
+
+        prediction = dict()
+        prediction['id'] = 'PREDICTION'
+        prediction['data'] = output
+        
+        emit(prediction)
+
+        print(bcolors.OKBLUE, "Completed", bcolors.ENDC)
+
+
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] or json_message['id'] == "START" and json_message['data']['start_server']:
 
         print(bcolors.WARNING +
@@ -234,11 +265,21 @@ def handle_messages(json_message):
         if path.isdir("output"):
             delete_contents(path.join(app_root, "output"))
 
-    return 'files deleted'  
+    return 'files deleted'
 
 
 def emit(data):
     socketio.emit(MESSAGE_EVENT, json.dumps(data))
+
+
+def filter_img(im):
+    blackorwhite = np.count_nonzero(
+        np.all(im == [255, 255, 255], axis=2) | np.all(im == [0, 0, 0], axis=2))
+    total = im.shape[0] * im.shape[1]
+    ratio = (blackorwhite/total)*100
+    if(int(ratio) > 90):
+        return False
+    return True
 
 
 def send_mri(folder):

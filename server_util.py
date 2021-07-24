@@ -2,8 +2,14 @@ from os import path, mkdir, listdir, unlink, makedirs
 from shutil import rmtree
 import string
 import random
+from statuses import *
+import requests
+
+URL = "http://mritopet.pythonanywhere.com/get_val"
 
 app_root = path.dirname(path.abspath(__file__))
+
+counter = [-1]
 
 class bcolors:
     HEADER = '\033[95m'
@@ -28,7 +34,7 @@ def create_folders():
     if not path.exists(temp_folder):
         mkdir(temp_folder)
         mkdir(path.join(temp_folder, "denoise"))
-        mkdir(path.join(temp_folder, "skull_strip"))        
+        mkdir(path.join(temp_folder, "skull_strip"))
         mkdir(path.join(temp_folder, "bias_cor"))
         mkdir(path.join(temp_folder, "output"))
 
@@ -63,6 +69,16 @@ def supported_file(filename):
     else:
         return False
 
+
+def aggregate(val=None):
+    r = requests.get(url = URL)
+    data = r.json()
+      
+    return data
+
+
+
+
 def generate_secret_key():
-    res = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 5))
+    res = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
     return str(res)

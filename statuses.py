@@ -13,3 +13,10 @@ BIAS_CORRECTION = 'bias_correction'
 
 UPLOAD_START = 'upload_start'
 UPLOAD_END = 'upload_end'
+
+AD = "AD"
+CN = "CN"
+EMCI = "EMCI"
+LMCI = "LMCI"
+MCI = "MCI"
+SMC = "SMC"

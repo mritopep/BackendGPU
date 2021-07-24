@@ -25,7 +25,8 @@ class Mri2Pet:
         if load_test_data:
             self.test_data = load_test()
         self.test_data = None
-        self.img = None
+        self.mri_imgs = None
+        self.pet_imgs = None
 
     def test(self, n=245, m=50):
         input_images = self.test_data[0][n: n+m]
@@ -43,13 +44,13 @@ class Mri2Pet:
         send_mri(folder)
 
         preprocess(file, Skull_Strip=Skull_Strip, Denoise=Denoise, Bias_Correction=Bias_Correction ,emit=emit, status=status)
-        self.img = read_nifti("input/temp/output/mri.nii")
+        self.mri_imgs = read_nifti("input/temp/output/mri.nii")
         print(bcolors.OKBLUE + "Processing complete" + bcolors.ENDC)
 
     def save(self):
         print(bcolors.OKBLUE + "Saving .nii file of result..." + bcolors.ENDC)
         s = time.time()
-        output_nii = img_to_nii(self.img)
+        output_nii = img_to_nii(self.pet_imgs)
         nib.save(output_nii, path.join(THIS_FOLDER, 'output/nii/pet.nii.gz'))
         print(bcolors.UNDERLINE + "Time taken ", "%.3f"%(time.time()-s) + bcolors.ENDC)
         print(bcolors.OKBLUE + "Completed" + bcolors.ENDC)
@@ -57,12 +58,12 @@ class Mri2Pet:
     def generate(self ,send_pet=None):
         print(bcolors.OKBLUE + "Generating Pet..." + bcolors.ENDC)
         s = time.time()
-        self.img = (self.img - 127.5) / 127.5
-        fake_images = zeros(self.img.shape)
+        self.mri_imgs = (self.mri_imgs - 127.5) / 127.5
+        fake_images = zeros(self.mri_imgs.shape)
         slice_no = 1
 
-        for i in range(len(self.img)):
-            fake_images[i] = self.model.predict(self.img[i:i+1])
+        for i in range(len(self.mri_imgs)):
+            fake_images[i] = self.model.predict(self.mri_imgs[i:i+1])
             print("Slice number :", slice_no, "completed")
             slice_no += 1
 
@@ -72,12 +73,12 @@ class Mri2Pet:
         print(bcolors.OKCYAN + "Result shape :",
               predicted_imgs.shape, bcolors.ENDC)
 
-        for i in range(len(self.img)):
+        for i in range(len(self.mri_imgs)):
             plt.imsave(f"{predicted_data}/{i}.png",
                        normalize(predicted_imgs[i]), cmap=plt.cm.Greys_r)
 
         if send_pet : send_pet(predicted_data)
 
-        self.img = predicted_imgs
+        self.pet_imgs = predicted_imgs
         print(bcolors.UNDERLINE + "Time taken ", "%.3f"%(time.time()-s) + bcolors.ENDC)
         print(bcolors.OKBLUE + "Pet Generation complete" + bcolors.ENDC)

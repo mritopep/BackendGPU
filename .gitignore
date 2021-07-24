@@ -1,4 +1,6 @@
 model/
 output/
 input/
+classifiers/
+ngrok-link.txt
 __pycache__
