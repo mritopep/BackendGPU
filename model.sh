@@ -4,6 +4,6 @@ unzip model.zip
 rm model.zip
 
 wget https://www.dropbox.com/s/trlm7nhiqmtphb9/classifiers.zip?dl=0
-mv 'classifiers.zip\?dl\=0' classifiers.zip
+mv 'classifiers.zip?dl=0' classifiers.zip
 unzip classifiers.zip
 rm classifiers.zip 
