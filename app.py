@@ -244,6 +244,7 @@ def handle_messages(json_message):
 
         prediction = dict()
         prediction['id'] = 'PREDICTION'
+        prediction['data'] = dict()
         
         prediction['data']['class'] = "CN" if np.argmax(result)%2 else "AD"
         prediction['data']['confidence'] = max(result)
