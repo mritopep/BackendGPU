@@ -3,9 +3,7 @@ from shutil import rmtree
 import string
 import random
 from statuses import *
-import requests
 
-URL = "http://mritopet.pythonanywhere.com/get_val"
 
 app_root = path.dirname(path.abspath(__file__))
 
@@ -68,15 +66,6 @@ def supported_file(filename):
         return True
     else:
         return False
-
-
-def aggregate(val=None):
-    r = requests.get(url = URL)
-    data = r.json()
-      
-    return data
-
-
 
 
 def generate_secret_key():

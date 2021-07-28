@@ -18,6 +18,7 @@ from flask import Response
 import shutil
 from keras.models import load_model
 import sys
+from read_scan import load_processed_img
 
 from server_util import *
 from model_util import *
@@ -69,10 +70,8 @@ dbx = dropbox.Dropbox(
     "dsD7-kooEwQAAAAAAAAAAQr33QP7twaSOK_Xj9RJHirXh6-h9d7itQsJG-KheXzt")
 
 
-mri_classifier = load_model("classifiers/mri_vgg16_classifier_30.h5")
-pet_classifier = load_model("classifiers/pet_vgg16_classifier_15.h5")
-stacked_model = load_model("classifiers/Stacked_Model_vgg.h5")
-
+mri_3d_model = load_model('classifiers/3d_mri_classification.h5')
+pet_3d_model = load_model('classifiers/3d_pet_gen.h5')
 
 print(bcolors.BOLD, model, bcolors.ENDC, flush=True)
 
@@ -228,22 +227,26 @@ def handle_messages(json_message):
 
         print(bcolors.OKBLUE, "Generating classifications", bcolors.ENDC)
 
-        
-        results = [[1e1]*12 for _ in range(len(model.mri_imgs))]    
+        mri_scan = "input/nii/mri.nii"
+        pet_scan = "output/nii/pet.nii.gz"
+
+        mri_image = load_processed_img(mri_scan)
+        pet_image = load_processed_img(pet_scan)
+
+        mri_res = mri_3d_model.predict(mri_image)[0]
+        pet_res = pet_3d_model.predict(pet_image)[0]
 
         print(bcolors.OKBLUE, "Combining results", bcolors.ENDC)
 
-        output = []
-        
-        for i in range(len(results)):
-            print("Slice", i + 1, "processed")
-            output.append(np.argmax(stacked_model.predict(np.expand_dims(results[i], axis=0))[0]))
-        
-        output = aggregate(output)
+        print(mri_res, pet_res)
+
+        result = np.concatenate((mri_res, pet_res), axis=0)
 
         prediction = dict()
         prediction['id'] = 'PREDICTION'
-        prediction['data'] = output
+        
+        prediction['data']['class'] = "CN" if np.argmax(result)%2 else "AD"
+        prediction['data']['confidence'] = max(result)
         
         emit(prediction)
 

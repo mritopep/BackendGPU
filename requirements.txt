@@ -12,7 +12,7 @@ keras
 pfmisc
 nibabel
 pydicom
-ipykernel
+ipykernelresults = [[1e1]*12 for _ in range(len(model.mri_imgs))]
 nibabel
 nilearn
 numpy
@@ -23,3 +23,4 @@ sklearn
 dropbox
 flask-socketio
 pyngrok
+scikit-image
