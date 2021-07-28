@@ -245,14 +245,13 @@ def handle_messages(json_message):
         prediction = dict()
         prediction['id'] = 'PREDICTION'
         prediction['data'] = dict()
-        
-        prediction['data']['class'] = "CN" if np.argmax(result)%2 else "AD"
-        prediction['data']['confidence'] = max(result)
-        
+
+        prediction['data']['class'] = "CN" if np.argmax(result) % 2 else "AD"
+        prediction['data']['confidence'] = '{:.2f}'.format(max(result)*100)
+
         emit(prediction)
 
         print(bcolors.OKBLUE, "Completed", bcolors.ENDC)
-
 
     if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] or json_message['id'] == "START" and json_message['data']['start_server']:
 
