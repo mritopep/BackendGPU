@@ -19,6 +19,8 @@ import shutil
 from keras.models import load_model
 import sys
 from read_scan import load_processed_img
+from model_util import gamma_correction
+import cv2
 
 from server_util import *
 from model_util import *
@@ -289,6 +291,10 @@ def send_mri(folder):
     mr_slice_no = 0
     for img in sorted(listdir(folder)):
         mr_slice = dict()
+
+        cv2.imwrite(path.join(folder, img), gamma_correction(
+            cv2.imread(path.join(folder, img))))
+            
         with open(path.join(folder, img), "rb") as image_file:
             encoded_string = base64.b64encode(
                 image_file.read()).decode('utf-8')

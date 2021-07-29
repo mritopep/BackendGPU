@@ -27,6 +27,7 @@ def create_folders():
         mkdir(input_folder)
         mkdir(path.join(input_folder, "nii"))
         mkdir(path.join(input_folder, "img"))
+        mkdir(path.join(input_folder, "upload"))
 
     temp_folder = path.join(input_folder, 'temp')
     if not path.exists(temp_folder):

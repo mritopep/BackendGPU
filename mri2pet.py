@@ -40,8 +40,10 @@ class Mri2Pet:
         print(bcolors.OKBLUE + "Processing Data..." + bcolors.ENDC)
 
         folder = "./input/img/"
+        folder2 = "./input/upload/"
         convert("input/nii/mri.nii", folder)
-        send_mri(folder)
+        convert("input/nii/mri.nii", folder2)
+        send_mri(folder2)
 
         preprocess(file, Skull_Strip=Skull_Strip, Denoise=Denoise, Bias_Correction=Bias_Correction ,emit=emit, status=status)
         self.mri_imgs = read_nifti("input/temp/output/mri.nii")
