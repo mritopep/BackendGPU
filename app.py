@@ -42,8 +42,11 @@ def create_ngrok_app():
 
         port = sys.argv[sys.argv.index(
             "--port") + 1] if "--port" in sys.argv else 5000
+        
+        ngrok.set_auth_token("1nVYxp54FWAA7aaBJP4Sr6y2vgw_7gBeaZ3rXfJJWmuue9kYR")
 
         public_url = ngrok.connect(port).public_url
+        
 
         open("ngrok-link.txt", "w").write(" * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
             public_url, port))
