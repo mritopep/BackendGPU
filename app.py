@@ -1,4 +1,3 @@
-from flask import Flask, request, redirect, session, render_template
 import json
 from numpy import save
 from mri2pet import Mri2Pet
@@ -6,7 +5,6 @@ from os import path, mkdir, listdir, unlink
 #from werkzeug.utils import secure_filename
 import dropbox
 from statuses import *
-from flask_socketio import SocketIO
 import shutil
 import os
 import time
@@ -14,67 +12,11 @@ import zipfile
 import string
 import base64
 import random
-from flask import Response
 import shutil
 import sys
 
 from server_util import *
 from model_util import *
-
-def create_main_js(url):
-    f1 = open("dist/UI/main.js", "w")
-    f2 = open("js_parts/upper.txt", "r")
-    f1.write(f2.read())
-    f2.close()
-    f1.close()
-    f1 = open("dist/UI/main.js", "a")
-    f1.write(url)
-    f2 = open("js_parts/lower.txt", "r")
-    f1.write(f2.read())
-    f2.close()
-    f1.close()
-
-def init_webhooks(base_url):
-    pass
-
-
-def create_ngrok_app():
-    app = Flask(__name__,
-            static_url_path='', 
-            static_folder='dist/UI',
-            template_folder='dist/UI')
-    # Initialize our ngrok settings into Flask
-    app.config.from_mapping(
-        BASE_URL="http://localhost:5000",
-        USE_NGROK=os.environ.get("WERKZEUG_RUN_MAIN") != "true"
-    )
-
-    if app.config["USE_NGROK"]:
-        from pyngrok import ngrok
-
-        port = sys.argv[sys.argv.index(
-            "--port") + 1] if "--port" in sys.argv else 5000
-
-        public_url = ngrok.connect(port).public_url
-
-        open("ngrok-link.txt", "w").write(" * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
-            public_url, port))
-
-        create_main_js(public_url)
-
-        print(bcolors.HEADER + " * ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(
-            public_url, port) + bcolors.ENDC)
-
-        print("\n"+"-"*25+"APP"+"-"*25+"\n")
-        
-        print(bcolors.HEADER + f"Click Here to Start App {public_url}" + bcolors.ENDC)
-
-        print("\n"+"-"*25+"APP"+"-"*25+"\n")
-
-        app.config["BASE_URL"] = public_url
-        init_webhooks(public_url)
-
-    return app
 
 
 app_root = path.dirname(path.abspath(__file__))
@@ -83,16 +25,11 @@ MESSAGE_EVENT = "Messages"
 MRI = "MRI"
 PET = "PET"
 
-app = create_ngrok_app()
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-
 model = Mri2Pet()
 dbx = dropbox.Dropbox(
     "dsD7-kooEwQAAAAAAAAAAQr33QP7twaSOK_Xj9RJHirXh6-h9d7itQsJG-KheXzt")
 
 print(bcolors.BOLD, model, bcolors.ENDC, flush=True)
-
 
 def download_file(dbx, file, name):
     _, f = dbx.files_download("/" + file)
@@ -110,10 +47,10 @@ def exists(dbx, path):
         return False
 
 
-def upload_file(dbx, file_path, file):
-    with open(file, "rb") as f:
-        dbx.files_upload(f.read(), file_path,
-                         mode=dropbox.files.WriteMode.overwrite)
+# def upload_file(dbx, file_path, file):
+#     with open(file, "rb") as f:
+#         dbx.files_upload(f.read(), file_path,
+#                          mode=dropbox.files.WriteMode.overwrite)
 
 
 def process(model, file_path, Skull_Strip, Denoise, Bias_Correction, status):
@@ -155,114 +92,78 @@ def process(model, file_path, Skull_Strip, Denoise, Bias_Correction, status):
 
     print("end")
 
+def mri_to_pet_conversion():
+    print("mri to pet conversion started")
+    create_folders()
+    input_folder = path.join(app_root, 'input', 'nii')
+    target_mri = "mri"    
+    input_mri_file_path = path.join(input_folder, target_mri + ".nii")
+    file_path = input_mri_file_path
 
-@socketio.on(MESSAGE_EVENT)
-def handle_messages(json_message):
+    print(bcolors.OKBLUE + f"File path : {file_path}" + bcolors.ENDC)
 
-    print(bcolors.OKCYAN,  'received json: ', json_message, bcolors.ENDC)
+    status = dict()
+    status['id'] = "PROCESS_STATUS"
+    status['data'] = dict()
 
-    #emit("Messages", "Recieved : " + str(json))
+    status['data'][PREPROCESS_START] = False
+    status['data'][PREPROCESS_END] = False
+    status['data'][GENERATE_START] = False
+    status['data'][GENERATE_END] = False
+    status['data'][SAVING_START] = False
+    status['data'][SAVING_END] = False
+    status['data'][DENOISE] = False
+    status['data'][SKULL_STRIP] = False
+    status['data'][BIAS_CORRECTION] = False
+    status['data'][UPLOAD_START] = False
+    status['data'][UPLOAD_END] = False
+    print("********************************"+file_path)
+    process(model, file_path, Skull_Strip=True,
+                Denoise=True, Bias_Correction=True, status=status)
 
-    if json_message['id'] == "OPTION":
-        session['Skull_Strip'] = json_message['data']['skull_strip']
-        session['Denoise'] = json_message['data']['denoise']
-        session['Bias_Correction'] = json_message['data']['bias_correction']
+    # status['data'][UPLOAD_START] = True
+    # emit(status)
+    # pet_zip_upload = dict()
+    # pet_zip_upload['id'] = "PET_ZIP_UPLOAD"
+    # pet_zip_upload['data'] = dict()
+    # pet_zip = shutil.make_archive(path.join(
+    #     app_root, 'output', "pet"), 'zip', path.join(app_root, 'output', "nii"))
+    # upload_file(dbx, "/pet.zip", pet_zip)
+    # pet_zip_upload['data']['uploaded'] = True
+    # try:
+    #     pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings(
+    #         "/pet.zip").url
+    # except:
+    #     pet_zip_upload['data']['url'] = dbx.sharing_list_shared_links(
+    #         "/pet.zip", direct_only=True).url
 
-    if json_message['id'] == "MRI_ZIP_UPLOAD" and json_message['data']['uploaded'] == True:
+    # emit(pet_zip_upload)
 
-        print(bcolors.OKBLUE + "Starting" + bcolors.ENDC)
+    # status['data'][UPLOAD_END] = True
+    # emit(status)
 
-        if 'Skull_Strip' not in session:
-            session['Skull_Strip'] = False
-        if 'Denoise' not in session:
-            session['Denoise'] = False
-        if 'Bias_Correction' not in session:
-            session['Bias_Correction'] = False
+    # if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] or json_message['id'] == "START" and json_message['data']['start_server']:
 
-        create_folders()
+    #     print(bcolors.WARNING +
+    #           "DELETING LOCAL FOLDERS AND REMOTE FILES" + bcolors.ENDC)
 
-        input_folder = path.join(app_root, 'input', 'nii')
-        target_mri = "mri"
-        zip_file_path = path.join(input_folder, target_mri + ".zip")
+    #     if exists(dbx, "/pet.zip"):
+    #         dbx.files_delete("/pet.zip")
+    #     if exists(dbx, "/mri.zip"):
+    #         dbx.files_delete("/mri.zip")
 
-        download_file(dbx, target_mri + ".zip", zip_file_path)
+    #     if path.isdir("input"):
+    #         delete_contents(path.join(app_root, "input"))
+    #     if path.isdir("output"):
+    #         delete_contents(path.join(app_root, "output"))
 
-        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-            zip_ref.extractall(input_folder)
-        os.remove(zip_file_path)
-
-        file_path = path.join(input_folder, listdir(input_folder)[0])
-
-        print(bcolors.OKBLUE + f"File path : {file_path}" + bcolors.ENDC)
-
-        status = dict()
-        status['id'] = "PROCESS_STATUS"
-        status['data'] = dict()
-
-        status['data'][PREPROCESS_START] = False
-        status['data'][PREPROCESS_END] = False
-
-        status['data'][GENERATE_START] = False
-        status['data'][GENERATE_END] = False
-
-        status['data'][SAVING_START] = False
-        status['data'][SAVING_END] = False
-
-        status['data'][DENOISE] = False
-        status['data'][SKULL_STRIP] = False
-        status['data'][BIAS_CORRECTION] = False
-
-        status['data'][UPLOAD_START] = False
-        status['data'][UPLOAD_END] = False
-
-        process(model, file_path, Skull_Strip=session['Skull_Strip'],
-                Denoise=session['Denoise'], Bias_Correction=session['Bias_Correction'], status=status)
-
-        status['data'][UPLOAD_START] = True
-        emit(status)
-
-        pet_zip_upload = dict()
-        pet_zip_upload['id'] = "PET_ZIP_UPLOAD"
-        pet_zip_upload['data'] = dict()
-
-        pet_zip = shutil.make_archive(path.join(
-            app_root, 'output', "pet"), 'zip', path.join(app_root, 'output', "nii"))
-        upload_file(dbx, "/pet.zip", pet_zip)
-
-        pet_zip_upload['data']['uploaded'] = True
-
-        try:
-            pet_zip_upload['data']['url'] = dbx.sharing_create_shared_link_with_settings(
-                "/pet.zip").url
-        except:
-            pet_zip_upload['data']['url'] = dbx.sharing_list_shared_links(
-                "/pet.zip", direct_only=True).url
-
-        emit(pet_zip_upload)
-
-        status['data'][UPLOAD_END] = True
-        emit(status)
-
-    if json_message['id'] == 'DELETE_STATUS' and json_message['data']['delete'] or json_message['id'] == "START" and json_message['data']['start_server']:
-
-        print(bcolors.WARNING +
-              "DELETING LOCAL FOLDERS AND REMOTE FILES" + bcolors.ENDC)
-
-        if exists(dbx, "/pet.zip"):
-            dbx.files_delete("/pet.zip")
-        if exists(dbx, "/mri.zip"):
-            dbx.files_delete("/mri.zip")
-
-        if path.isdir("input"):
-            delete_contents(path.join(app_root, "input"))
-        if path.isdir("output"):
-            delete_contents(path.join(app_root, "output"))
-
-    return 'hello'  # response
+    print("mri to pet conversion done")
+    return 'hello'  # response    
 
 
 def emit(data):
-    socketio.emit(MESSAGE_EVENT, json.dumps(data))
+    #socketio.emit(MESSAGE_EVENT, json.dumps(data))
+    print(data)
 
 
 def send_mri(folder):
@@ -275,7 +176,8 @@ def send_mri(folder):
             mr_slice['slice_no'] = mr_slice_no
             mr_slice['data'] = encoded_string
 
-            socketio.emit(MRI, json.dumps(mr_slice))
+            #socketio.emit(MRI, json.dumps(mr_slice))
+            print(json.dumps(mr_slice))
         mr_slice_no += 1
 
     mri_img_upload = dict()
@@ -297,7 +199,8 @@ def send_pet(folder):
             pet_slice['slice_no'] = pet_slice_no
             pet_slice['data'] = encoded_string
 
-            socketio.emit(PET, json.dumps(pet_slice))
+            #socketio.emit(PET, json.dumps(pet_slice))
+            print(json.dumps(pet_slice))
         pet_slice_no += 1
 
     pet_img_upload = dict()
@@ -308,9 +211,4 @@ def send_pet(folder):
 
     emit(pet_img_upload)
 
-@app.route('/')
-def index():
-    return render_template("index.html")
-    
-if __name__ == '__main__':
-    socketio.run(app)
+mri_to_pet_conversion()
